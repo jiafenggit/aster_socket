@@ -79,7 +79,6 @@ static char *send_socket(const char *host, const int port, const char *message) 
     // Fixing a bug, when recv func receive text
     // with previous data (of this data short)
     //char *tmp = (char *) calloc(len, sizeof(char *));
-    memcpy(&tmp, buf, sizeof(buf));
     ast_copy_string(tmp, buf, len + 1);
 
     close(sock);
