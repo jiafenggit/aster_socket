@@ -95,8 +95,8 @@ static int socket_exec(struct ast_channel *chan, const char *data) {
 
 // Func calling from CLI "socket test text"
 static char *handle_cli_socket_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a) {
-	char *message;
-	char *ret = CLI_FAILURE;
+    char *message;
+    char *ret = CLI_FAILURE;
 
     // Register CLI command
     switch (cmd) {
@@ -142,13 +142,13 @@ static int load_module(void) {
 
 // Unload module. CLI: module unload app_socket.so
 static int unload_module(void) {
-	int res;
+    int res;
 
-	res = ast_unregister_application(app_socket);
+    res = ast_unregister_application(app_socket);
 
-	ast_cli_unregister_multiple(cli_socket, ARRAY_LEN(cli_socket));
+    ast_cli_unregister_multiple(cli_socket, ARRAY_LEN(cli_socket));
 
-	return res;
+    return res;
 }
 
 // Info about this module for asterisk
