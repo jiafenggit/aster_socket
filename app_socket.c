@@ -11,7 +11,6 @@
  * at the top of the source tree.
  */
 
-
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -61,7 +60,7 @@ static char *send_socket(const char *message) {
 
     // Send message to server. Len "+1" is needed!!!
     send(sock, message, strlen(message) + 1, 0);
-    ast_verb(0, "PRE Len: %zu\n", strlen(buf));
+
     // Receive data
     len = recv(sock, buf, buf_len, 0);
 
