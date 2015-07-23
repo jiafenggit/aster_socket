@@ -57,7 +57,7 @@ static char *send_socket(const char *host, const int port, const char *message) 
     if (hp) {
         memcpy(&addr.sin_addr, hp->h_addr, sizeof(addr.sin_addr));
     } else {
-        ast_log(LOG_ERROR, "Invalid hostname!\n");
+        ast_log(LOG_ERROR, "Could not resolve hostname!\n");
         close(sock);
         return 0;
     }
