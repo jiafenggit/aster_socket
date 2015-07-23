@@ -28,7 +28,7 @@ static char *app_socket = "Socket";
 static char *send_socket(const char *host, const int port, const char *message) {
     struct timeval tv;
     int buf_len = 4096;
-    char buf[buf_len];
+    char buf[buf_len], tmp[buf_len];
     int sock, len;
     struct sockaddr_in addr;
     struct hostent *hp;
@@ -78,7 +78,8 @@ static char *send_socket(const char *host, const int port, const char *message) 
 
     // Fixing a bug, when recv func receive text
     // with previous data (of this data short)
-    char *tmp = (char *) calloc(len, sizeof(char *));
+    //char *tmp = (char *) calloc(len, sizeof(char *));
+    memcpy(&tmp, buf, sizeof(buf));
     ast_copy_string(tmp, buf, len + 1);
 
     close(sock);
