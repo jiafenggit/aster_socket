@@ -25,12 +25,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char *app_socket = "Socket";
 
 // Send data to server and receive answer
-static char *send_socket(const char *message) {
+static char *send_socket(const char *host, const int port, const char *message) {
     struct timeval tv;
     int buf_len = 4096;
     char buf[buf_len];
     int sock, len;
     struct sockaddr_in addr;
+    struct hostent *hp;
+    struct ast_hostent he;
 
     tv.tv_sec = 5; // Connect timeout in sec
 
@@ -39,7 +41,7 @@ static char *send_socket(const char *message) {
     if(sock < 0)
     {
     	ast_log(LOG_ERROR, "Cannot create socket!\n");
-    	return 0;
+        return 0;
     }
 
     // Set options of connect
@@ -48,13 +50,22 @@ static char *send_socket(const char *message) {
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
     // Set interface and port    
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(3425);
-    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    addr.sin_port = htons(port);
+    // Getting IP from Hostname
+    hp = ast_gethostbyname(host, &he);
+    if (hp) {
+        memcpy(&addr.sin_addr, hp->h_addr, sizeof(addr.sin_addr));
+    } else {
+        ast_log(LOG_ERROR, "Invalid hostname!\n");
+        close(sock);
+        return 0;
+    }
 
     // Connecting to server
     if(connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0)     
     {
     	ast_log(LOG_ERROR, "Cannot connect to server!\n");
+        close(sock);
         return 0;
     }
 
@@ -76,16 +87,40 @@ static char *send_socket(const char *message) {
 
 // Func used when calling Socket app in dialplan
 static int socket_exec(struct ast_channel *chan, const char *data) {
+    char *host, *message, *tmp;
+    int port;
+
+    AST_DECLARE_APP_ARGS(args,
+                AST_APP_ARG(host);
+                AST_APP_ARG(port);
+                AST_APP_ARG(message);
+        );
+
     // Arguments is needed
     if (ast_strlen_zero(data)) {
         ast_log(LOG_ERROR, "Socket app need arguments!\n");
         return 0;
     }
 
-    char *message;
-    message = ast_strdupa(data);
+    tmp = ast_strdupa(data);
+    AST_STANDARD_APP_ARGS(args, tmp);
 
-    char *socket_data = send_socket(message); // Send data
+    if (ast_strlen_zero(args.host)) {
+        ast_log(LOG_ERROR, "Socket app need host, port and message text!\n");
+        return 0;
+    } else if (ast_strlen_zero(args.port)) {
+        ast_log(LOG_ERROR, "Socket app also need port and message text!\n");
+        return 0;
+    } else if (ast_strlen_zero(args.message)) {
+        ast_log(LOG_ERROR, "Socket app also need message text!\n");
+        return 0;
+    }
+
+    host = ast_strdupa(args.host);
+    port = atoi(ast_strdupa(args.port));
+    message = ast_strdupa(args.message);
+
+    char *socket_data = send_socket(host, port, message); // Send data
 
     // Set asterisk variables id dialplan
     pbx_builtin_setvar_helper(chan, "SOCKET_DATA", S_OR(socket_data, NULL));
@@ -95,8 +130,9 @@ static int socket_exec(struct ast_channel *chan, const char *data) {
 
 // Func calling from CLI "socket test text"
 static char *handle_cli_socket_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a) {
-    char *message;
+    char *host, *message;
     char *ret = CLI_FAILURE;
+    int port;
 
     // Register CLI command
     switch (cmd) {
@@ -111,9 +147,23 @@ static char *handle_cli_socket_test(struct ast_cli_entry *e, int cmd, struct ast
 
     ast_module_ref(ast_module_info->self);
 
-    message = ast_strdupa(a->argv[2]);
+    // Arguments is needed
+    if (ast_strlen_zero(a->argv[2])) {
+        ast_log(LOG_ERROR, "Socket app need host, port and message text!\n");
+        return 0;
+    } else if (ast_strlen_zero(a->argv[3])) {
+        ast_log(LOG_ERROR, "Socket app also need port and message text!\n");
+        return 0;
+    } else if (ast_strlen_zero(a->argv[4])) {
+        ast_log(LOG_ERROR, "Socket app also need message text!\n");
+        return 0;
+    }
 
-    char *res = send_socket(message);
+    host = ast_strdupa(a->argv[2]);
+    port = atoi(ast_strdupa(a->argv[3]));
+    message = ast_strdupa(a->argv[4]);
+
+    char *res = send_socket(host, port, message);
     if (res) {
         ast_verb(0, "Received: %s\n", res);
     }
