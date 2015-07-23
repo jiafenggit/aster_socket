@@ -27,7 +27,7 @@ static char *app_socket = "Socket";
 // Send data to server and receive answer
 static char *send_socket(const char *message) {
     struct timeval tv;
-    int buf_len = 1024*1024;
+    int buf_len = 4096;
     char buf[buf_len];
     int sock, len;
     struct sockaddr_in addr;
