@@ -26,8 +26,8 @@ static char *app_socket = "Socket";
 
 // Send data to server and receive answer
 static char *send_socket(const char *message) {
-	struct timeval tv;
-	int buf_len = 1024*1024;
+    struct timeval tv;
+    int buf_len = 1024*1024;
     char buf[buf_len];
     int sock, len;
     struct sockaddr_in addr;
@@ -77,20 +77,20 @@ static char *send_socket(const char *message) {
 // Func used when calling Socket app in dialplan
 static int socket_exec(struct ast_channel *chan, const char *data) {
     // Arguments is needed
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_ERROR, "Socket app need arguments!\n");
-		return 0;
-	}
+    if (ast_strlen_zero(data)) {
+        ast_log(LOG_ERROR, "Socket app need arguments!\n");
+        return 0;
+    }
 
-	char *message;
-	message = ast_strdupa(data);
+    char *message;
+    message = ast_strdupa(data);
 
     char *socket_data = send_socket(message); // Send data
 
     // Set asterisk variables id dialplan
     pbx_builtin_setvar_helper(chan, "SOCKET_DATA", S_OR(socket_data, NULL));
 
-	return 0;
+    return 0;
 }
 
 // Func calling from CLI "socket test text"
@@ -99,19 +99,19 @@ static char *handle_cli_socket_test(struct ast_cli_entry *e, int cmd, struct ast
 	char *ret = CLI_FAILURE;
 
     // Register CLI command
-	switch (cmd) {
+    switch (cmd) {
         case CLI_INIT:
-                e->command = "socket test";
-                e->usage =
-                        "Usage: socket test <text>\n";
-                return NULL;
+        e->command = "socket test";
+        e->usage =
+        "Usage: socket test <text>\n";
+        return NULL;
         case CLI_GENERATE:
-                return NULL;
-        }
+        return NULL;
+    }
 
-	ast_module_ref(ast_module_info->self);
+    ast_module_ref(ast_module_info->self);
 
-	message = ast_strdupa(a->argv[2]);
+    message = ast_strdupa(a->argv[2]);
 
     char *res = send_socket(message);
     if (res) {
@@ -125,7 +125,7 @@ static char *handle_cli_socket_test(struct ast_cli_entry *e, int cmd, struct ast
 
 // Register CLI applications and it func
 static struct ast_cli_entry cli_socket[] = {
-        AST_CLI_DEFINE(handle_cli_socket_test, "Test socket")
+    AST_CLI_DEFINE(handle_cli_socket_test, "Test socket")
 };
 
 // Load module. CLI: module load app_socket.so
