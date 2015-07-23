@@ -1,13 +1,17 @@
-//#include <sys/types.h>
-//#include <sys/socket.h>
-//#include <netinet/in.h>
-//#include <stdio.h>
-//#include <stdlib.h>
-//#include <string.h>
-//#include <unistd.h> 
+/*
+ * app_socket
+ *
+ * Copyright (C) 2015
+ * Miho <miho@miho.org.ua>
+ * http://miho.org.ua
+ *
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
 
 #include "asterisk.h"
-
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
@@ -17,24 +21,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/pbx.h"
 
-
+// Register a name of application in dialplan
 static char *app_socket = "Socket";
 
-static char *send_socket(int type, const char *message1)
-{
-
+// Send data to server and receive answer
+static char *send_socket(const char *message) {
 	struct timeval tv;
 	int buf_len = 1024*1024;
-    char message[strlen(message1)];
     char buf[buf_len];
-    int sock, len;
+    int sock;
     struct sockaddr_in addr;
-    char *msg_ptr = (char*)malloc(sizeof(char*));
-    
-    tv.tv_sec = 5;
-    strcpy(message, message1);
-    strcpy(msg_ptr, "\0");
 
+    tv.tv_sec = 5; // Connect timeout in sec
+
+    // Creating socket
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if(sock < 0)
     {
@@ -42,170 +42,74 @@ static char *send_socket(int type, const char *message1)
     	return 0;
     }
 
+    // Set options of connect
+    // Set timeout
 	setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
 	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
+    // Set interface and port    
     addr.sin_family = AF_INET;
     addr.sin_port = htons(3425);
     addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
+    // Connecting to server
     if(connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0)     
     {
     	ast_log(LOG_ERROR, "Cannot connect to server!\n");
         return 0;
     }
 
-
+    // Send message to server. Len "+1" is need!!!
     send(sock, message, strlen(message) + 1, 0);
 
-    /*while (1)
-    {
-        len = recv(sock, buf, 1, 0);
-        buf[1] = "\0";
-        if(len == 0)
-        {
-            break;
-        }
-        if(len == -1)
-        {
-        	ast_log(LOG_WARNING, "Receive data error (maybe timeout)!\n");
-        	break;
-        }
-
-        msg_ptr = (char*)realloc(msg_ptr, (strlen(msg_ptr) + strlen(buf)) * sizeof(char*));
-        strcat(msg_ptr, buf);
-
-        ast_verb(0, "RC: %s\n", buf);
-
-        if(*buf == '\n' || *buf == '\0')
-        {   
-            break;
-        }
-    }
-    
-    msg_ptr = (char*)realloc(msg_ptr, (strlen(msg_ptr) + strlen("\0")) * sizeof(char*));
-    strcat(msg_ptr, "\0");*/
-
+    // Reciive data
     recv(sock, buf, buf_len, 0);
 
     close(sock);
-    ast_verb(0, "RC: %zu\n", strlen(buf));
-    ast_verb(0, "RD: %s\n", buf);
 
     return ast_strdupa(buf);
 }
 
-static int socket_exec(struct ast_channel *chan, const char *data)
-{
-	/*unsigned int vsize;
-	char *parse;
-	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(level);
-		AST_APP_ARG(msg);
-	);
-
-	if (ast_strlen_zero(data)) {
-		return 0;
-	}
-
-	parse = ast_strdupa(data);
-	AST_STANDARD_APP_ARGS(args, parse);
-	if (args.argc == 1) {
-		args.msg = args.level;
-		args.level = "0";
-	}
-
-	if (sscanf(args.level, "%30u", &vsize) != 1) {
-		vsize = 0;
-		ast_log(LOG_WARNING, "'%s' is not a verboser number\n", args.level);
-	} else if (4 < vsize) {
-		vsize = 4;
-	}
-
-	ast_verb(vsize, "%s\n", args.msg);*/
-
-	//char *message;
-
-	//message = (char*)realloc(message,(sizeof(message) + sizeof(data)));
-	 //strcpy(message, data);
-	//message = ast_strdupa(a->argv[2]);
-
-
-	//ast_verb(0, "Pre send func\n");
+// Func used when calling Socket app in dialplan
+static int socket_exec(struct ast_channel *chan, const char *data) {
+    // Arguments is needed
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR, "Socket app need arguments!\n");
 		return 0;
 	}
-	char *parse;
-	parse = ast_strdupa(data);
-    char *socket_data = send_socket(0, parse);
-    //ast_log(LOG_NOTICE, "Received data: %s\n", socket_data);
-    if (socket_data) {
-    	pbx_builtin_setvar_helper(chan, "SOCKET_DATA", socket_data);
-    }
-	//pbx_builtin_setvar_helper(chan, "SOCKET_DATA", S_OR(send_socket(0, data), NULL));
-	//ast_log(LOG_WARNING, "%s\n", socket_data);
+
+	char *message;
+	message = ast_strdupa(data);
+
+    char *socket_data = send_socket(message); // Send data
+
+    // Set asterisk variables id dialplan
+    pbx_builtin_setvar_helper(chan, "SOCKET_DATA", S_OR(socket_data, NULL));
 
 	return 0;
 }
 
-static char *handle_cli_socket_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
+// Func calling from CLI "socket test text"
+static char *handle_cli_socket_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a) {
+	char *message;
 	char *ret = CLI_FAILURE;
-	switch (cmd) {
-        case CLI_INIT:
-                e->command = "socket show";
-                e->usage =
-                        "Usage: socket show to show status\n";
-                return NULL;
-        case CLI_GENERATE:
-                return NULL;
-        }
 
-	ast_module_ref(ast_module_info->self);
-    ret = CLI_SUCCESS;
-    return ret;
-}
-
-static char *handle_cli_socket_set(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	char *ret = CLI_FAILURE;
-	switch (cmd) {
-        case CLI_INIT:
-                e->command = "socket set";
-                e->usage =
-                        "Usage: socket set variable\n";
-                return NULL;
-        case CLI_GENERATE:
-                return NULL;
-        }
-
-	ast_module_ref(ast_module_info->self);
-    ret = CLI_SUCCESS;
-    return ret;
-}
-
-static char *handle_cli_socket_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	//ast_verb(0, "Pre test init\n");
-	//char *message;
-	char *parse;
-	char *ret = CLI_FAILURE;
+    // Register CLI command
 	switch (cmd) {
         case CLI_INIT:
                 e->command = "socket test";
                 e->usage =
-                        "Usage: socket set variable\n";
+                        "Usage: socket test <text>\n";
                 return NULL;
         case CLI_GENERATE:
                 return NULL;
         }
 
 	ast_module_ref(ast_module_info->self);
-	parse = ast_strdupa(a->argv[2]);
-	ast_verb(0, "Pre send func %s\n", parse);
-    char *res = send_socket(1, parse);
+
+	message = ast_strdupa(a->argv[2]);
+
+    char *res = send_socket(message);
     if (res) {
-    	//ast_cli(a->fd, "Received: %s.\n", res);
         ast_verb(0, "Received: %s\n", res);
     }
 
@@ -214,36 +118,33 @@ static char *handle_cli_socket_test(struct ast_cli_entry *e, int cmd, struct ast
     return ret;
 }
 
-
+// Register CLI applications and it func
 static struct ast_cli_entry cli_socket[] = {
-        AST_CLI_DEFINE(handle_cli_socket_show, "Show socket status"),
-        AST_CLI_DEFINE(handle_cli_socket_set, "Set socet variable"),
         AST_CLI_DEFINE(handle_cli_socket_test, "Test socket")
 };
 
-static int unload_module(void)
-{
+// Load module. CLI: module load app_socket.so
+static int load_module(void) {
+    int res;
+
+    res = ast_register_application_xml(app_socket, socket_exec);
+
+    ast_cli_register_multiple(cli_socket, ARRAY_LEN(cli_socket));
+
+
+    return res;
+}
+
+// Unload module. CLI: module unload app_socket.so
+static int unload_module(void) {
 	int res;
 
 	res = ast_unregister_application(app_socket);
-	//res |= ast_unregister_application(app_log);
 
 	ast_cli_unregister_multiple(cli_socket, ARRAY_LEN(cli_socket));
 
 	return res;
 }
 
-static int load_module(void)
-{
-	int res;
-
-	res = ast_register_application_xml(app_socket, socket_exec);
-	//res |= ast_register_application_xml(app_verbose, verbose_exec);
-
-	ast_cli_register_multiple(cli_socket, ARRAY_LEN(cli_socket));
-
-
-	return res;
-}
-
+// Info about this module for asterisk
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Miho Socket app");
