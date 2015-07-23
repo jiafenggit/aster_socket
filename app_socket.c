@@ -35,6 +35,7 @@ static char *send_socket(const char *host, const int port, const char *message) 
     struct ast_hostent he;
 
     tv.tv_sec = 5; // Connect timeout in sec
+    tv.tv_usec = 5;
 
     // Creating socket
     sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -46,8 +47,8 @@ static char *send_socket(const char *host, const int port, const char *message) 
 
     // Set options of connect
     // Set timeout
-    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
-    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,(struct timeval *)&tv,sizeof(struct timeval));
+    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO,&tv,sizeof(tv));
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv));
     // Set interface and port    
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
