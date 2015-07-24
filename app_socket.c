@@ -38,11 +38,11 @@ static int getJson(json_keys *keys, const char *json, const int start_pos) {
     char *tmp_key = (char*) calloc(1, sizeof(char*));
     int found_key = 0, sub_json = 0;
     int i = 0, j, keys_count;
-    //json_keys *keys = new json_keys;
+    /* json_keys *keys = new json_keys; */
     keys_count = start_pos;
 
     if (json[0] != '{' || json[strlen(json + 1)] != '}') {
-        //cout<<"Is not json"<<endl;
+        /* cout<<"Is not json"<<endl; */
         return 0;
     }
 
@@ -66,6 +66,7 @@ static int getJson(json_keys *keys, const char *json, const int start_pos) {
             if (i == 0) {
                 keys[keys_count].key = (char*) calloc(1, sizeof(char*));
                 for (j = strlen(tmp_key) - 1; j >= 0; j--) {
+
                     keys[keys_count].key = (char*) realloc(keys[keys_count].key, (strlen(keys[keys_count].key) + strlen(&tmp_key[j])) * sizeof(char*));
                     strncat(keys[keys_count].key, &tmp_key[j],1);
                 }
@@ -75,8 +76,10 @@ static int getJson(json_keys *keys, const char *json, const int start_pos) {
 
             /* Если ключ считывается то заносим данные к ключу, запятая означает конец ключа */
             if (found_key == 1 && new_json[i] != ',') {
+
                 tmp_key = (char*) realloc(tmp_key, (strlen(tmp_key) + strlen(&new_json[i])) * sizeof(char*));
                 strncat(tmp_key, &new_json[i], 1);
+
             }
 
             /* Двоеточие означает начало считывания ключа */
@@ -86,10 +89,13 @@ static int getJson(json_keys *keys, const char *json, const int start_pos) {
 
             /* Если ключ считывается ищем запятую, она означает конец ключа */
             if (new_json[i] == ',' && found_key == 1) {
+
                 keys[keys_count].key = (char*) calloc(1, sizeof(char*));
                 for (j = strlen(tmp_key) - 1; j >= 0; j--) {
+
                     keys[keys_count].key = (char*) realloc(keys[keys_count].key, (strlen(keys[keys_count].key) + strlen(&tmp_key[j])) * sizeof(char*));
                     strncat(keys[keys_count].key, &tmp_key[j],1);
+
                 }
                 keys_count++;
                 strcpy(tmp_key, "\0");
@@ -103,8 +109,11 @@ static int getJson(json_keys *keys, const char *json, const int start_pos) {
 
         /* Закончился json в json */
         if (new_json[i] == '{' && sub_json > 0) {
+
             sub_json -= 1;
+            //cout<<sub_json<<endl;
             if (sub_json == 0) {
+
                 for (j = strlen(sub_json_str) - 1; j >= 0; j--) {
                     sub_json_str_n = (char*) realloc(sub_json_str_n, (strlen(sub_json_str_n) + strlen(&sub_json_str[j])) * sizeof(char*));
                     strncat(sub_json_str_n, &sub_json_str[j],1);
@@ -118,7 +127,7 @@ static int getJson(json_keys *keys, const char *json, const int start_pos) {
     }
 
     
-    //memcpy ( &main_key, &keys, sizeof(keys) );
+    /* memcpy ( &main_key, &keys, sizeof(keys) ); */
 
     return keys_count;
 }
@@ -197,7 +206,7 @@ static int *set_vars_from_json(const char *text) {
     RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
 
     //char json[] = "{\"test1\": \"{ddd: {ddd1: {ddd3: {ddd4: fff}}} }\", 'test2': 2}";
-    json_keys *keys = (json_keys*) malloc(30 * sizeof(json_keys*));
+    json_keys *keys = (json_keys*) malloc(30 * sizeof(json_keys));
     int c;
 
     c = getJson(keys, text, json_args);
