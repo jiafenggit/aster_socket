@@ -63,7 +63,7 @@ static char *send_socket(const char *host, const int port, const char *message) 
     }
 
     // Connecting to server
-    if(connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0)     
+    if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0)     
     {
     	ast_log(LOG_ERROR, "Cannot connect to server!\n");
         close(sock);
@@ -74,7 +74,11 @@ static char *send_socket(const char *host, const int port, const char *message) 
     send(sock, message, strlen(message) + 1, 0);
 
     // Receive data
-    len = recv(sock, buf, buf_len, 0);
+    if ((len = recv(sock, buf, buf_len, 0)) <= 0) {
+        ast_log(LOG_ERROR, "Dont receive response from host!\n");
+        close(sock);
+        return 0;
+    }
 
     // Fixing a bug, when recv func receive text
     // with previous data (of this data short)
@@ -84,6 +88,38 @@ static char *send_socket(const char *host, const int port, const char *message) 
     close(sock);
 
     return ast_strdupa(tmp);
+}
+
+static int *set_vars_from_json(const char *text) {
+    int json_args = 0, i = 0;
+    //char *tmp_str;
+    //int tmp_int;
+    RAII_VAR(struct ast_json *, s, NULL, ast_json_unref);
+    RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
+
+    if ((s = ast_json_load_string(text, NULL)) == NULL) {
+        ast_log(LOG_WARNING, "NO JSON\n");
+        return 0;
+    }
+
+    json_args = ast_json_object_size(s);
+    //ast_log(LOG_ERROR, "JSON: %ju\n", ast_json_integer_get(ast_json_object_get(s, "test")));
+    for (i = 1; i <= json_args; i++) {
+        if (ast_json_string_get(ast_json_object_get(s, "test")) != NULL ) {
+            ast_log(LOG_ERROR, "JSON: %s\n", ast_json_string_get(ast_json_object_get(s, "")));
+        } else if (ast_json_integer_get(ast_json_object_get(s, "test")) != 0 ) {
+            ast_log(LOG_ERROR, "JSON: %ju\n", ast_json_integer_get(ast_json_object_get(s, "test")));
+        }
+    }
+
+    
+
+    return 0;
+
+    // Array size ast_json_object_size(s))
+    // From json to string ast_json_dump_string('s')
+    // From string to json ast_json_load_string('s', NULL);
+    // Get from json ast_json_string_get(ast_json_object_get(s, 'key'))
 }
 
 // Func used when calling Socket app in dialplan
@@ -163,6 +199,8 @@ static char *handle_cli_socket_test(struct ast_cli_entry *e, int cmd, struct ast
     host = ast_strdupa(a->argv[2]);
     port = atoi(ast_strdupa(a->argv[3]));
     message = ast_strdupa(a->argv[4]);
+
+    set_vars_from_json(message);
 
     char *res = send_socket(host, port, message);
     if (res) {
