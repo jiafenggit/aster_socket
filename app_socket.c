@@ -24,6 +24,105 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 // Register a name of application in dialplan
 static char *app_socket = "Socket";
 
+typedef struct _json_keys {
+    int count;
+    char *key;
+    char *data;
+} json_keys;
+
+
+static int getJson(json_keys *keys, const char *json, const int start_pos) {
+    char *new_json = (char*) calloc(1, sizeof(char*));
+    char *sub_json_str = (char*) calloc(1, sizeof(char*));
+    char *sub_json_str_n = (char*) calloc(1, sizeof(char*));
+    char *tmp_key = (char*) calloc(1, sizeof(char*));
+    int found_key = 0, sub_json = 0;
+    int i = 0, j, keys_count;
+    //json_keys *keys = new json_keys;
+    keys_count = start_pos;
+
+    if (json[0] != '{' || json[strlen(json + 1)] != '}') {
+        //cout<<"Is not json"<<endl;
+        return 0;
+    }
+
+    for (i = 0; i < strlen(json); i++) {
+        if (json[i] != ' ' && json[i] != '"' && json[i] != '\'') {
+            new_json = (char*) realloc(new_json, (strlen(new_json) + strlen(&json[i])) * sizeof(char*));
+            strncat(new_json, &json[i], 1);
+        }
+    }
+
+    for (i = strlen(new_json + 2); i >= 0; i--) {
+        /* Начался json в json */
+        if (new_json[i] == '}') {
+
+            sub_json += 1;
+        }
+
+        /* парсим */
+        if (sub_json == 0) {
+            /* Если дошли до конца, то выводим последний ключ*/
+            if (i == 0) {
+                keys[keys_count].key = (char*) calloc(1, sizeof(char*));
+                for (j = strlen(tmp_key) - 1; j >= 0; j--) {
+                    keys[keys_count].key = (char*) realloc(keys[keys_count].key, (strlen(keys[keys_count].key) + strlen(&tmp_key[j])) * sizeof(char*));
+                    strncat(keys[keys_count].key, &tmp_key[j],1);
+                }
+                keys_count++;
+                found_key = 0;
+            }
+
+            /* Если ключ считывается то заносим данные к ключу, запятая означает конец ключа */
+            if (found_key == 1 && new_json[i] != ',') {
+                tmp_key = (char*) realloc(tmp_key, (strlen(tmp_key) + strlen(&new_json[i])) * sizeof(char*));
+                strncat(tmp_key, &new_json[i], 1);
+            }
+
+            /* Двоеточие означает начало считывания ключа */
+            if (new_json[i] == ':') {
+                found_key = 1;
+            }
+
+            /* Если ключ считывается ищем запятую, она означает конец ключа */
+            if (new_json[i] == ',' && found_key == 1) {
+                keys[keys_count].key = (char*) calloc(1, sizeof(char*));
+                for (j = strlen(tmp_key) - 1; j >= 0; j--) {
+                    keys[keys_count].key = (char*) realloc(keys[keys_count].key, (strlen(keys[keys_count].key) + strlen(&tmp_key[j])) * sizeof(char*));
+                    strncat(keys[keys_count].key, &tmp_key[j],1);
+                }
+                keys_count++;
+                strcpy(tmp_key, "\0");
+                tmp_key = (char*) realloc(tmp_key, 1 * sizeof(char*));
+                found_key = 0;
+            }
+        } else {
+            sub_json_str = (char*) realloc(sub_json_str, (strlen(sub_json_str) + strlen(&new_json[i])) * sizeof(char*));
+            strncat(sub_json_str, &new_json[i], 1);
+        }
+
+        /* Закончился json в json */
+        if (new_json[i] == '{' && sub_json > 0) {
+            sub_json -= 1;
+            if (sub_json == 0) {
+                for (j = strlen(sub_json_str) - 1; j >= 0; j--) {
+                    sub_json_str_n = (char*) realloc(sub_json_str_n, (strlen(sub_json_str_n) + strlen(&sub_json_str[j])) * sizeof(char*));
+                    strncat(sub_json_str_n, &sub_json_str[j],1);
+                }
+                //cout<<sub_json_str_n<<endl;
+                
+                
+                keys_count += getJson(keys, sub_json_str_n, keys_count) - 1;
+            }
+        }
+    }
+
+    
+    //memcpy ( &main_key, &keys, sizeof(keys) );
+
+    return keys_count;
+}
+
 // Send data to server and receive answer
 static char *send_socket(const char *host, const int port, const char *message) {
     struct timeval tv;
@@ -97,7 +196,20 @@ static int *set_vars_from_json(const char *text) {
     RAII_VAR(struct ast_json *, s, NULL, ast_json_unref);
     RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
 
-    if ((s = ast_json_load_string(text, NULL)) == NULL) {
+    //char json[] = "{\"test1\": \"{ddd: {ddd1: {ddd3: {ddd4: fff}}} }\", 'test2': 2}";
+    json_keys *keys = (json_keys*) malloc(30 * sizeof(json_keys*));
+    int c;
+
+    c = getJson(keys, text, json_args);
+    //cout<<c<<endl;
+
+    for (i = 0; i < c; i++) {
+        ast_log(LOG_ERROR, "JSON: %s\n", keys[i].key);
+        //cout<<keys[i].key<<endl;
+        
+    }
+
+    /*if ((s = ast_json_load_string(text, NULL)) == NULL) {
         ast_log(LOG_WARNING, "NO JSON\n");
         return 0;
     }
@@ -110,7 +222,7 @@ static int *set_vars_from_json(const char *text) {
         } else if (ast_json_integer_get(ast_json_object_get(s, "test")) != 0 ) {
             ast_log(LOG_ERROR, "JSON: %ju\n", ast_json_integer_get(ast_json_object_get(s, "test")));
         }
-    }
+    }*/
 
     
 
