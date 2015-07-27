@@ -113,8 +113,8 @@ int getJson(json_keys *keys, char *json, int start_pos, const char *parent) {
 }
 
 int main() {
-	char json[] = "{\"test1\": \"{ddd: {ddd1: {ddd3: {ddd4:  {ddd5:  {ddd6: {ddd7: {ddd8: {ddd9: {ddd10: {ddd11: fff}}}}}}}, qwer:222}}}}\", 'test2': 2345, 'test2': 2345, 'test2': 2345, 'test2': 1111}";
-	//char json[] = "{test1:123,test2:124}";
+	//char json[] = "{\"test1\": \"{ddd: {ddd1: {ddd3: {ddd4:  {ddd5:  {ddd6: {ddd7: {ddd8: {ddd9: {ddd10: {ddd11: fff}}}}}}}, qwer:222}}}}\", 'test2': 2345, 'test2': 2345, 'test2': 2345, 'test2': 1111}";
+	char json[] = "{test1: 12 3,test2:124}";
 	json_keys *s = (json_keys*) calloc(100, sizeof(json_keys*));
 	int i, c;
 

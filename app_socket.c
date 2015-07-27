@@ -21,6 +21,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/pbx.h"
 
+#define MODULE_DESCRIPTION  "Miho Socket app"
+
 // Register a name of application in dialplan
 static char *app_socket = "Socket";
 
@@ -331,6 +333,14 @@ static struct ast_cli_entry cli_socket[] = {
     AST_CLI_DEFINE(handle_cli_socket_test, "Test socket")
 };
 
+/*!
+ * \brief Reload the module
+ */
+static int reload_module(void)
+{
+        return 0;
+}
+
 // Load module. CLI: module load app_socket.so
 static int load_module(void) {
     int res;
@@ -355,4 +365,9 @@ static int unload_module(void) {
 }
 
 // Info about this module for asterisk
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Miho Socket app");
+//AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Miho Socket app");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, MODULE_DESCRIPTION,
+        .load = load_module,
+        .unload = unload_module,
+        .reload = reload_module,
+);
