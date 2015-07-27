@@ -25,21 +25,20 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char *app_socket = "Socket";
 
 typedef struct _json_keys {
-    int count;
     char *key;
     char *data;
 } json_keys;
 
 
-static int getJson(json_keys *keys, const char *json, const int start_pos) {
-    char *new_json = (char*) calloc(1, sizeof(char*));
-    char *sub_json_str = (char*) calloc(1, sizeof(char*));
-    char *sub_json_str_n = (char*) calloc(1, sizeof(char*));
-    char *tmp_key = (char*) calloc(1, sizeof(char*));
-    int found_key = 0, sub_json = 0;
-    int i = 0, j, keys_count;
-    /* json_keys *keys = new json_keys; */
-    keys_count = start_pos;
+static int getJson(json_keys *keys, const char *json, const int start_pos, const char *parent) {
+    char *new_json = (char*) calloc(0, sizeof(char*));
+    char *new_parent = (char*) calloc(0, sizeof(char*));
+    int found_key = 1;
+    int found_data = 0;
+    int sub_json = 0;
+    int i;
+    int keys_count = start_pos;
+    int data_count = start_pos;
 
     if (json[0] != '{' || json[strlen(json + 1)] != '}') {
         /* cout<<"Is not json"<<endl; */
@@ -53,81 +52,73 @@ static int getJson(json_keys *keys, const char *json, const int start_pos) {
         }
     }
 
-    for (i = strlen(new_json + 2); i >= 0; i--) {
-        /* Начался json в json */
-        if (new_json[i] == '}') {
+    keys[keys_count].key = (char*) calloc(strlen(parent), sizeof(char*));
+    strcpy(keys[keys_count].key, parent);
 
+    for (i = 1; i < strlen(new_json) - 1; i++) {
+        /* Начался json в json */
+        if (new_json[i] == '{') {
             sub_json += 1;
         }
 
-        /* парсим */
         if (sub_json == 0) {
-            /* Если дошли до конца, то выводим последний ключ*/
-            if (i == 0) {
-                keys[keys_count].key = (char*) calloc(1, sizeof(char*));
-                for (j = strlen(tmp_key) - 1; j >= 0; j--) {
 
-                    keys[keys_count].key = (char*) realloc(keys[keys_count].key, (strlen(keys[keys_count].key) + strlen(&tmp_key[j])) * sizeof(char*));
-                    strncat(keys[keys_count].key, &tmp_key[j],1);
-                }
-                keys_count++;
-                found_key = 0;
+            /* Если ключ считывается то заносим данные к ключу, : означает конец ключа */
+            if (found_key == 1 && new_json[i] != ':') {
+                keys[keys_count].key = (char*) realloc(keys[keys_count].key, (strlen(keys[keys_count].key) + strlen(&new_json[i])) * sizeof(char*));
+                strncat(keys[keys_count].key, &new_json[i],1);
             }
 
-            /* Если ключ считывается то заносим данные к ключу, запятая означает конец ключа */
-            if (found_key == 1 && new_json[i] != ',') {
-
-                tmp_key = (char*) realloc(tmp_key, (strlen(tmp_key) + strlen(&new_json[i])) * sizeof(char*));
-                strncat(tmp_key, &new_json[i], 1);
-
-            }
-
-            /* Двоеточие означает начало считывания ключа */
-            if (new_json[i] == ':') {
+            /* Запятая означает начало считывания ключа */
+            if (new_json[i] == ',') {
+                keys[keys_count].key = (char*) calloc(strlen(parent), sizeof(char*));
+                strcpy(keys[keys_count].key, parent);
                 found_key = 1;
             }
 
-            /* Если ключ считывается ищем запятую, она означает конец ключа */
-            if (new_json[i] == ',' && found_key == 1) {
-
-                keys[keys_count].key = (char*) calloc(1, sizeof(char*));
-                for (j = strlen(tmp_key) - 1; j >= 0; j--) {
-
-                    keys[keys_count].key = (char*) realloc(keys[keys_count].key, (strlen(keys[keys_count].key) + strlen(&tmp_key[j])) * sizeof(char*));
-                    strncat(keys[keys_count].key, &tmp_key[j],1);
-
-                }
+            /* Если ключ считывается ищем :, она означает конец ключа */
+            if (new_json[i] == ':' && found_key == 1) {
                 keys_count++;
-                strcpy(tmp_key, "\0");
-                tmp_key = (char*) realloc(tmp_key, 1 * sizeof(char*));
                 found_key = 0;
             }
+
+            /* Парсим значения ключей */
+
+            /* Если данные считываются то заносим данные к данным, , означает конец данных */
+            if (found_data == 1 && new_json[i] != ',') {
+                keys[data_count].data = (char*) realloc(keys[data_count].data, (strlen(keys[data_count].data) + strlen(&new_json[i])) * sizeof(char*));
+                strncat(keys[data_count].data, &new_json[i],1);
+            }
+
+            /* : означает начало считывания ключа */
+            if (new_json[i] == ':') {
+                keys[data_count].data = (char*) calloc(0, sizeof(char*));
+                found_data = 1;
+            }
+
+            /* Если ключ считывается ищем , , она означает конец ключа */
+            if (new_json[i] == ',' && found_data == 1) {
+                data_count++;
+                found_data = 0;
+            }
         } else {
-            sub_json_str = (char*) realloc(sub_json_str, (strlen(sub_json_str) + strlen(&new_json[i])) * sizeof(char*));
-            strncat(sub_json_str, &new_json[i], 1);
+            keys[data_count].data = (char*) realloc(keys[data_count].data, (strlen(keys[data_count].data) + strlen(&new_json[i])) * sizeof(char*));
+            strncat(keys[data_count].data, &new_json[i], 1);
         }
 
         /* Закончился json в json */
-        if (new_json[i] == '{' && sub_json > 0) {
-
+        if (new_json[i] == '}' && sub_json > 0) {
             sub_json -= 1;
-            //cout<<sub_json<<endl;
             if (sub_json == 0) {
-
-                for (j = strlen(sub_json_str) - 1; j >= 0; j--) {
-                    sub_json_str_n = (char*) realloc(sub_json_str_n, (strlen(sub_json_str_n) + strlen(&sub_json_str[j])) * sizeof(char*));
-                    strncat(sub_json_str_n, &sub_json_str[j],1);
-                }
-                //cout<<sub_json_str_n<<endl;
+                new_parent = (char*) realloc(new_parent, (strlen(new_parent) + strlen(keys[keys_count - 1].key)) * sizeof(char*));
                 
-                
-                keys_count += getJson(keys, sub_json_str_n, keys_count) - 1;
+                strcat(new_parent, keys[keys_count - 1].key);
+                strcat(new_parent, "_");
+                keys_count = getJson(keys, keys[data_count].data, keys_count, new_parent);
+                data_count = keys_count - 1;
             }
         }
     }
-
-    
-    /* memcpy ( &main_key, &keys, sizeof(keys) ); */
 
     return keys_count;
 }
@@ -198,25 +189,29 @@ static char *send_socket(const char *host, const int port, const char *message) 
     return ast_strdupa(tmp);
 }
 
-static int *set_vars_from_json(const char *text) {
-    int json_args = 0, i = 0;
-    //char *tmp_str;
-    //int tmp_int;
-    RAII_VAR(struct ast_json *, s, NULL, ast_json_unref);
-    RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
-
-    //char json[] = "{\"test1\": \"{ddd: {ddd1: {ddd3: {ddd4: fff}}} }\", 'test2': 2}";
-    json_keys *keys = (json_keys*) malloc(30 * sizeof(json_keys));
+static int *set_vars_from_json(struct ast_channel *chan, const char *text) {
+    json_keys *keys = (json_keys*) calloc(100, sizeof(json_keys*));
+    char *tmp =(char*) calloc(0, sizeof(char*));
+    int json_args = 0;
+    int i;
     int c;
 
-    c = getJson(keys, text, json_args);
-    //cout<<c<<endl;
+    c = getJson(keys, text, json_args, "");
 
-    for (i = 0; i < c; i++) {
-        ast_log(LOG_ERROR, "JSON: %s\n", keys[i].key);
-        //cout<<keys[i].key<<endl;
-        
+    if (c > 0) {
+        for (i = 0; i < c; i++) {
+            ast_log(LOG_NOTICE, "JSON: %s-%s\n", keys[i].key, keys[i].data);
+            tmp = (char*) realloc(tmp, (strlen("SOCKET_") + strlen(keys[i].key)) * sizeof(char*) );
+            strcpy(tmp, "SOCKET_");
+            strcat(tmp, keys[i].key);
+            pbx_builtin_setvar_helper(chan, tmp, S_OR(keys[i].data, NULL));
+            
+        }
+    } else {
+        pbx_builtin_setvar_helper(chan, "SOCKET_DATA", S_OR(text, NULL));
     }
+
+    
 
     /*if ((s = ast_json_load_string(text, NULL)) == NULL) {
         ast_log(LOG_WARNING, "NO JSON\n");
@@ -281,7 +276,7 @@ static int socket_exec(struct ast_channel *chan, const char *data) {
     char *socket_data = send_socket(host, port, message); // Send data
 
     // Set asterisk variables id dialplan
-    pbx_builtin_setvar_helper(chan, "SOCKET_DATA", S_OR(socket_data, NULL));
+    set_vars_from_json(chan, socket_data);
 
     return 0;
 }
@@ -320,8 +315,6 @@ static char *handle_cli_socket_test(struct ast_cli_entry *e, int cmd, struct ast
     host = ast_strdupa(a->argv[2]);
     port = atoi(ast_strdupa(a->argv[3]));
     message = ast_strdupa(a->argv[4]);
-
-    set_vars_from_json(message);
 
     char *res = send_socket(host, port, message);
     if (res) {

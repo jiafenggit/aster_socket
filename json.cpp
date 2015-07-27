@@ -10,21 +10,21 @@
 using namespace std;
 
 struct json_keys {
-	int count;
 	char *key;
 	char *data;
 };
 
 
-int getJson(json_keys *keys, char *json, int start_pos) {
-	char *new_json = (char*) calloc(1, sizeof(char*));
-	char *sub_json_str = (char*) calloc(1, sizeof(char*));
-	char *sub_json_str_n = (char*) calloc(1, sizeof(char*));
-	char *tmp_key = (char*) calloc(1, sizeof(char*));
-	int found_key = 0, sub_json = 0;
-	int i = 0, j, keys_count;
-	/* json_keys *keys = new json_keys; */
-	keys_count = start_pos;
+int getJson(json_keys *keys, char *json, int start_pos, const char *parent) {
+	char *new_json = (char*) calloc(0, sizeof(char*));
+	char *sub_json_str = (char*) calloc(0, sizeof(char*));
+	char *new_parent = (char*) calloc(0, sizeof(char*));
+	int found_key = 1;
+	int found_data = 0;
+	int sub_json = 0;
+	int i;
+	int keys_count = start_pos;
+	int data_count = start_pos;
 
 	if (json[0] != '{' || json[strlen(json + 1)] != '}') {
 		/* cout<<"Is not json"<<endl; */
@@ -38,89 +38,94 @@ int getJson(json_keys *keys, char *json, int start_pos) {
 		}
 	}
 
-	for (i = strlen(new_json + 2); i >= 0; i--) {
-		/* Начался json в json */
-		if (new_json[i] == '}') {
+	keys[keys_count].key = (char*) calloc(strlen(parent), sizeof(char*));
+	strcpy(keys[keys_count].key, parent);
 
+	for (i = 1; i < strlen(new_json) - 1; i++) {
+		/* Начался json в json */
+		if (new_json[i] == '{') {
 			sub_json += 1;
+			if (sub_json == 1) {
+				sub_json_str = (char*) calloc(0, sizeof(char*));
+			}
 		}
 
-		/* парсим */
 		if (sub_json == 0) {
-			/* Если дошли до конца, то выводим последний ключ*/
-			if (i == 0) {
-				keys[keys_count].key = (char*) calloc(1, sizeof(char*));
-				for (j = strlen(tmp_key) - 1; j >= 0; j--) {
-					keys[keys_count].key = (char*) realloc(keys[keys_count].key, (strlen(keys[keys_count].key) + strlen(&tmp_key[j])) * sizeof(char*));
-					strncat(keys[keys_count].key, &tmp_key[j],1);
-				}
-				keys_count++;
-				found_key = 0;
+
+			/* Если ключ считывается то заносим данные к ключу, : означает конец ключа */
+			if (found_key == 1 && new_json[i] != ':') {
+				keys[keys_count].key = (char*) realloc(keys[keys_count].key, (strlen(keys[keys_count].key) + strlen(&new_json[i])) * sizeof(char*));
+				strncat(keys[keys_count].key, &new_json[i],1);
 			}
 
-			/* Если ключ считывается то заносим данные к ключу, запятая означает конец ключа */
-			if (found_key == 1 && new_json[i] != ',') {
-				tmp_key = (char*) realloc(tmp_key, (strlen(tmp_key) + strlen(&new_json[i])) * sizeof(char*));
-				strncat(tmp_key, &new_json[i], 1);
-			}
-
-			/* Двоеточие означает начало считывания ключа */
-			if (new_json[i] == ':') {
+			/* Запятая означает начало считывания ключа */
+			if (new_json[i] == ',') {
+				keys[keys_count].key = (char*) calloc(strlen(parent), sizeof(char*));
+				strcpy(keys[keys_count].key, parent);
 				found_key = 1;
 			}
 
-			/* Если ключ считывается ищем запятую, она означает конец ключа */
-			if (new_json[i] == ',' && found_key == 1) {
-				keys[keys_count].key = (char*) calloc(1, sizeof(char*));
-				for (j = strlen(tmp_key) - 1; j >= 0; j--) {
-					keys[keys_count].key = (char*) realloc(keys[keys_count].key, (strlen(keys[keys_count].key) + strlen(&tmp_key[j])) * sizeof(char*));
-					strncat(keys[keys_count].key, &tmp_key[j],1);
-				}
+			/* Если ключ считывается ищем :, она означает конец ключа */
+			if (new_json[i] == ':' && found_key == 1) {
 				keys_count++;
-				strcpy(tmp_key, "\0");
-				tmp_key = (char*) realloc(tmp_key, 1 * sizeof(char*));
 				found_key = 0;
 			}
+
+			/* Парсим значения ключей */
+
+			/* Если данные считываются то заносим данные к данным, , означает конец данных */
+			if (found_data == 1 && new_json[i] != ',') {
+				keys[data_count].data = (char*) realloc(keys[data_count].data, (strlen(keys[data_count].data) + strlen(&new_json[i])) * sizeof(char*));
+				strncat(keys[data_count].data, &new_json[i],1);
+			}
+
+			/* : означает начало считывания ключа */
+			if (new_json[i] == ':') {
+				keys[data_count].data = (char*) calloc(0, sizeof(char*));
+				found_data = 1;
+			}
+
+			/* Если ключ считывается ищем , , она означает конец ключа */
+			if (new_json[i] == ',' && found_data == 1) {
+				data_count++;
+				found_data = 0;
+			}
 		} else {
-			sub_json_str = (char*) realloc(sub_json_str, (strlen(sub_json_str) + strlen(&new_json[i])) * sizeof(char*));
-			strncat(sub_json_str, &new_json[i], 1);
+			keys[data_count].data = (char*) realloc(keys[data_count].data, (strlen(keys[data_count].data) + strlen(&new_json[i])) * sizeof(char*));
+			strncat(keys[data_count].data, &new_json[i], 1);
 		}
 
 		/* Закончился json в json */
-		if (new_json[i] == '{' && sub_json > 0) {
+		if (new_json[i] == '}' && sub_json > 0) {
 			sub_json -= 1;
 			if (sub_json == 0) {
-				for (j = strlen(sub_json_str) - 1; j >= 0; j--) {
-					sub_json_str_n = (char*) realloc(sub_json_str_n, (strlen(sub_json_str_n) + strlen(&sub_json_str[j])) * sizeof(char*));
-					strncat(sub_json_str_n, &sub_json_str[j],1);
-				}
-				cout<<sub_json_str_n<<endl;
+				new_parent = (char*) realloc(new_parent, (strlen(new_parent) + strlen(keys[keys_count - 1].key)) * sizeof(char*));
 				
-				
-				keys_count += getJson(keys, sub_json_str_n, keys_count) - 1;
+				strcat(new_parent, keys[keys_count - 1].key);
+				strcat(new_parent, "_");
+				keys_count = getJson(keys, keys[data_count].data, keys_count, new_parent);
+				data_count = keys_count - 1;
 			}
 		}
 	}
-
-	
-	/* memcpy ( &main_key, &keys, sizeof(keys) ); */
 
 	return keys_count;
 }
 
 int main() {
-	char json[] = "{\"test1\": \"{ddd: {ddd1: {ddd3: {ddd4: fff}}} }\", 'test2': 2}";
-	json_keys *s = new json_keys;
+	char json[] = "{\"test1\": \"{ddd: {ddd1: {ddd3: {ddd4:  {ddd5:  {ddd6: {ddd7: {ddd8: {ddd9: {ddd10: {ddd11: fff}}}}}}}, qwer:222}}}}\", 'test2': 2345, 'test2': 2345, 'test2': 2345, 'test2': 1111}";
+	//char json[] = "{test1:123,test2:124}";
+	json_keys *s = (json_keys*) calloc(100, sizeof(json_keys*));
 	int i, c;
 
-	c = getJson(s, json, 0);
-	cout<<c<<endl;
+	c = getJson(s, json, 0, "");
 
 	for (i = 0; i < c; i++) {
 
-			cout<<s[i].key<<endl;
+			cout<<i<<": "<<s[i].key<<"-"<<s[i].data<<endl;
 		
 	}
+
 
 	return 0;
 }
