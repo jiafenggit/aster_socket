@@ -32,6 +32,32 @@ typedef struct _json_keys {
 } json_keys;
 
 
+static char *m_strcpy(const char *src, const int count) {
+    char *tmp;
+    if (count == 0) {
+        tmp = (char *) calloc(strlen(src), sizeof(char*));
+        strcpy(tmp, src);
+    } else {
+        tmp = (char *) calloc(count, sizeof(char*));
+        strncpy(tmp, src, count);
+    }
+    return tmp;
+}
+
+static char *m_strcat(char *dst, const char *src, const int count) {
+    char *tmp;
+    if (count == 0) {
+        tmp = (char *) calloc(strlen(dst) + strlen(src), sizeof(char*));
+        strcpy(tmp, dst);
+        strcat(tmp, src);
+    } else {
+        tmp = (char *) calloc(strlen(dst) + count, sizeof(char*));
+        strcpy(tmp, dst);
+        strncat(tmp, src, count);
+    }
+    return tmp;
+}
+
 static int getJson(json_keys *keys, const char *json, const int start_pos, const char *parent) {
     char *new_json = (char*) calloc(0, sizeof(char*));
     char *new_parent = (char*) calloc(0, sizeof(char*));
@@ -42,39 +68,30 @@ static int getJson(json_keys *keys, const char *json, const int start_pos, const
     int keys_count = start_pos;
     int data_count = start_pos;
 
-    if (json[0] != '{' || json[strlen(json + 1)] != '}') {
-        /* cout<<"Is not json"<<endl; */
+    if (json[0] != '{' || json[strlen(json + 1)] != '}')
         return 0;
-    }
 
-    for (i = 0; i < strlen(json); i++) {
-        if (json[i] != ' ' && json[i] != '"' && json[i] != '\'') {
-            new_json = (char*) realloc(new_json, (strlen(new_json) + strlen(&json[i])) * sizeof(char*));
-            strncat(new_json, &json[i], 1);
-        }
-    }
+    for (i = 0; i < strlen(json); i++)
+        if (json[i] != ' ' && json[i] != '"' && json[i] != '\'')
+            new_json = m_strcat(new_json, &json[i], 1);
 
-    keys[keys_count].key = (char*) calloc(strlen(parent), sizeof(char*));
-    strcpy(keys[keys_count].key, parent);
+    keys[keys_count].key = m_strcpy(parent, 0);
 
     for (i = 1; i < strlen(new_json) - 1; i++) {
         /* Начался json в json */
-        if (new_json[i] == '{') {
+        if (new_json[i] == '{')
             sub_json += 1;
-        }
 
         if (sub_json == 0) {
 
             /* Если ключ считывается то заносим данные к ключу, : означает конец ключа */
             if (found_key == 1 && new_json[i] != ':') {
-                keys[keys_count].key = (char*) realloc(keys[keys_count].key, (strlen(keys[keys_count].key) + strlen(&new_json[i])) * sizeof(char*));
-                strncat(keys[keys_count].key, &new_json[i],1);
+                keys[keys_count].key = m_strcat(keys[keys_count].key, &new_json[i], 1);
             }
 
             /* Запятая означает начало считывания ключа */
             if (new_json[i] == ',') {
-                keys[keys_count].key = (char*) calloc(strlen(parent), sizeof(char*));
-                strcpy(keys[keys_count].key, parent);
+                keys[keys_count].key = m_strcpy(parent, 0);
                 found_key = 1;
             }
 
@@ -88,8 +105,7 @@ static int getJson(json_keys *keys, const char *json, const int start_pos, const
 
             /* Если данные считываются то заносим данные к данным, , означает конец данных */
             if (found_data == 1 && new_json[i] != ',') {
-                keys[data_count].data = (char*) realloc(keys[data_count].data, (strlen(keys[data_count].data) + strlen(&new_json[i])) * sizeof(char*));
-                strncat(keys[data_count].data, &new_json[i],1);
+                keys[data_count].data = m_strcat(keys[data_count].data, &new_json[i], 1);
             }
 
             /* : означает начало считывания ключа */
@@ -104,18 +120,15 @@ static int getJson(json_keys *keys, const char *json, const int start_pos, const
                 found_data = 0;
             }
         } else {
-            keys[data_count].data = (char*) realloc(keys[data_count].data, (strlen(keys[data_count].data) + strlen(&new_json[i])) * sizeof(char*));
-            strncat(keys[data_count].data, &new_json[i], 1);
+            keys[data_count].data = m_strcat(keys[data_count].data, &new_json[i], 1);
         }
 
         /* Закончился json в json */
         if (new_json[i] == '}' && sub_json > 0) {
             sub_json -= 1;
             if (sub_json == 0) {
-                new_parent = (char*) realloc(new_parent, (strlen(new_parent) + strlen(keys[keys_count - 1].key)) * sizeof(char*));
-                
-                strcat(new_parent, keys[keys_count - 1].key);
-                strcat(new_parent, "_");
+                new_parent = m_strcat(new_parent, keys[keys_count - 1].key, 0);
+                new_parent = m_strcat(new_parent, "_", 0);
                 keys_count = getJson(keys, keys[data_count].data, keys_count, new_parent);
                 data_count = keys_count - 1;
             }
@@ -142,7 +155,7 @@ static char *send_socket(const char *host, const int port, const char *message) 
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if(sock < 0)
     {
-    	ast_log(LOG_ERROR, "Cannot create socket!\n");
+        ast_log(LOG_ERROR, "Cannot create socket!\n");
         return 0;
     }
 
@@ -166,7 +179,7 @@ static char *send_socket(const char *host, const int port, const char *message) 
     // Connecting to server
     if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0)     
     {
-    	ast_log(LOG_ERROR, "Cannot connect to server!\n");
+        ast_log(LOG_ERROR, "Cannot connect to server!\n");
         close(sock);
         return 0;
     }
@@ -219,7 +232,6 @@ static int *set_vars_from_json(struct ast_channel *chan, const char *text) {
         ast_log(LOG_WARNING, "NO JSON\n");
         return 0;
     }
-
     json_args = ast_json_object_size(s);
     //ast_log(LOG_ERROR, "JSON: %ju\n", ast_json_integer_get(ast_json_object_get(s, "test")));
     for (i = 1; i <= json_args; i++) {
